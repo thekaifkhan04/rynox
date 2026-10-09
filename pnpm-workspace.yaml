@@ -1,3 +1,7 @@
 allowBuilds:
+  # Pulled in only as optional peers of better-auth; never used here.
+  '@prisma/engines': false
+  prisma: false
+  esbuild: true
   sharp: false
   unrs-resolver: false

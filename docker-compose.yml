@@ -1,0 +1,14 @@
+# Local development database. Production uses Neon.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: events
+      POSTGRES_PASSWORD: events
+      POSTGRES_DB: events
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - events-db:/var/lib/postgresql
+volumes:
+  events-db:
