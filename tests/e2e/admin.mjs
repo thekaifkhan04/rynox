@@ -254,6 +254,16 @@ await page.waitForSelector("text=Set in ADMIN_EMAILS");
 await page.waitForLoadState("networkidle");
 await shot("16-admin-users");
 
+// Payments: totals, the paid order, and the CSV.
+await page.goto(`${BASE}/admin/payments`);
+await page.waitForSelector("h1:has-text('Payments')");
+await page.locator("tbody tr", { hasText: "ORD-" }).first().waitFor();
+if (!(await page.locator("dl").innerText()).includes("₹")) throw new Error("payment totals missing");
+const paymentsCsv = await ctx.request.get(`${BASE}/api/admin/payments/export`);
+if (paymentsCsv.status() !== 200 || !(await paymentsCsv.text()).includes("ORD-")) throw new Error("payments CSV is missing orders");
+await shot("16a-admin-payments");
+step("payments page lists orders with totals and exports CSV");
+
 // Home page: the organiser chooses which event leads it.
 {
   const homeCard = async () => {

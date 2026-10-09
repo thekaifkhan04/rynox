@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
             {[
               ["/admin", "Dashboard"],
               ["/admin/events", "Events"],
+              ["/admin/payments", "Payments"],
               ["/admin/users", "Users"],
               ["/admin/ai", "AI access"],
             ].map(([href, label]) => (
