@@ -1,7 +1,9 @@
+# Only install what this app asks for. Without this, every optional database
+# driver that better-auth and drizzle can work with (Prisma, MySQL, ...) is
+# pulled in as well, along with their security advisories.
+autoInstallPeers: false
+
 allowBuilds:
-  # Pulled in only as optional peers of better-auth; never used here.
-  '@prisma/engines': false
-  prisma: false
   esbuild: true
   sharp: false
   unrs-resolver: false
