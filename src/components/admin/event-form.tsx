@@ -152,7 +152,7 @@ export function EventForm({
           <Field label="Registration opens" htmlFor="registrationOpensAt" help="Empty = open as soon as the event is published.">
             <Input {...text("registrationOpensAt")} type="datetime-local" />
           </Field>
-          <Field label="Registration closes" htmlFor="registrationClosesAt" help="Empty = open until the event ends.">
+          <Field label="Registration closes" htmlFor="registrationClosesAt" help="Empty = closes when the event starts. Offline registrations can still be added after that.">
             <Input {...text("registrationClosesAt")} type="datetime-local" />
           </Field>
           <Field label="Timezone" htmlFor="timezone" help="All times above are in this timezone.">

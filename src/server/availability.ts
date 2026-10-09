@@ -80,7 +80,9 @@ export function registrationState(event: Event, now = new Date()): RegistrationS
   if (event.registrationOpensAt && now < event.registrationOpensAt) {
     return { open: false, reason: "Registration has not opened yet." };
   }
-  const closesAt = event.registrationClosesAt ?? event.endsAt;
+  // Unless the organiser set a closing time, online registration stops when the
+  // event starts. Walk-ins after that are entered as offline registrations.
+  const closesAt = event.registrationClosesAt ?? event.startsAt;
   if (now > closesAt) return { open: false, reason: "Registration is closed." };
   return { open: true };
 }

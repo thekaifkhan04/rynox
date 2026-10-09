@@ -62,6 +62,23 @@ describe("createOrder", () => {
       createOrder(u, { eventId: closed.event.id, attendees: [attendee(closed.types[0].id)] }),
     ).rejects.toThrow(/closed/);
 
+    // With no closing time set, registration stops when the event starts.
+    const started = await makeEvent({
+      startsAt: new Date(Date.now() - 60_000),
+      endsAt: new Date(Date.now() + 3_600_000),
+    });
+    await expect(
+      createOrder(u, { eventId: started.event.id, attendees: [attendee(started.types[0].id)] }),
+    ).rejects.toThrow(/closed/);
+    // An organiser can still add a walk-in after the start.
+    const walkIn = await createOrder(
+      u,
+      { eventId: started.event.id, attendees: [attendee(started.types[0].id)] },
+      new Date(),
+      { offline: true },
+    );
+    expect(walkIn.status).toBe("PAID");
+
     const other = await makeEvent();
     const ev = await makeEvent();
     await expect(
