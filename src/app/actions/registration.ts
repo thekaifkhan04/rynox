@@ -10,6 +10,7 @@ import { sendOrderEmail } from "@/server/emails";
 import { createOrder, OrderError, type CreateOrderInput } from "@/server/orders";
 import { applyToSponsor, type SponsorApplicationInput } from "@/server/sponsors";
 import { confirmCheckout, ensureRazorpayOrder, simulatePayment } from "@/server/payments";
+import { enforceRateLimit, LIMITS, rateLimit, RateLimitError } from "@/server/rate-limit";
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -17,13 +18,14 @@ export async function registerAction(input: CreateOrderInput): Promise<Result<{ 
   const user = await getUser();
   if (!user) return { ok: false, error: "Please sign in to register." };
   try {
+    await enforceRateLimit(`register:${user.id}`, LIMITS.register.limit, LIMITS.register.windowSeconds);
     const order = await createOrder(user, input);
     if (order.status === "PAID") {
       after(() => sendOrderEmail(order.id).catch((e) => console.error("Ticket email failed", e)));
     }
     return { ok: true, orderId: order.id };
   } catch (err) {
-    if (err instanceof OrderError) return { ok: false, error: err.message };
+    if (err instanceof OrderError || err instanceof RateLimitError) return { ok: false, error: err.message };
     console.error("registerAction failed", err);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
@@ -33,10 +35,11 @@ export async function sponsorApplyAction(input: SponsorApplicationInput): Promis
   const user = await getUser();
   if (!user) return { ok: false, error: "Please sign in to send a sponsorship request." };
   try {
+    await enforceRateLimit(`sponsor:${user.id}`, LIMITS.sponsorApply.limit, LIMITS.sponsorApply.windowSeconds);
     await applyToSponsor(user, input);
     return { ok: true };
   } catch (err) {
-    if (err instanceof OrderError) return { ok: false, error: err.message };
+    if (err instanceof OrderError || err instanceof RateLimitError) return { ok: false, error: err.message };
     console.error("sponsorApplyAction failed", err);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
@@ -49,6 +52,8 @@ export type CheckoutConfig =
 export async function startPaymentAction(orderId: string): Promise<Result<{ checkout: CheckoutConfig }>> {
   const user = await getUser();
   if (!user) return { ok: false, error: "Please sign in." };
+  const pay = await rateLimit(`pay:${user.id}`, LIMITS.startPayment.limit, LIMITS.startPayment.windowSeconds);
+  if (!pay.allowed) return { ok: false, error: "Too many attempts. Please wait a few minutes and try again." };
   const [order] = await db
     .select()
     .from(orders)

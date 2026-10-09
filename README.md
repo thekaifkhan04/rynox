@@ -81,6 +81,10 @@ to the site.
   from level to level under "Levels & results".
 - **Ticket PDFs** are built from [pdfcn](https://pdfcn.dev) components (`src/components/pdf`) on
   the Takumi engine, using the fonts in `assets/fonts`.
+- **Rate limits.** New registrations, payment attempts and sponsorship requests are limited per
+  account, and the MCP endpoint per token and (for wrong tokens) per client address. Counters live
+  in the database, so they hold across server instances. The numbers are in
+  `src/server/rate-limit.ts`.
 - **Home page event.** The home page leads with one event: its photo behind the hero and a card
   beside the headline. By default that is the next upcoming event. An admin can choose a
   different one with "Show on home page" (Admin → Events, or the event's header); if the chosen

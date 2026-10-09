@@ -57,6 +57,13 @@
       "when": 1791525565402,
       "tag": "0007_narrow_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791526967007,
+      "tag": "0008_dashing_stick",
+      "breakpoints": true
     }
   ]
 }

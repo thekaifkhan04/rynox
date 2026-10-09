@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { events, formFields, ticketTypes, user } from "@/db/schema";
 
 export async function resetDb() {
-  await db.execute(sql`TRUNCATE api_tokens, sponsors, sponsor_tiers, level_results, competition_levels, competitions, email_logs, refunds, tickets, orders, form_fields,
+  await db.execute(sql`TRUNCATE rate_limits, api_tokens, sponsors, sponsor_tiers, level_results, competition_levels, competitions, email_logs, refunds, tickets, orders, form_fields,
     event_sections, ticket_types, events, webhook_events, session, account, "user" CASCADE`);
 }
 

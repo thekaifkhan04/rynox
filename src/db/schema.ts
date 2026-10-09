@@ -426,6 +426,16 @@ export const apiTokens = pgTable(
   (t) => [index("api_tokens_user_idx").on(t.userId)],
 );
 
+/**
+ * Counters for rate limiting. Kept in the database so a limit holds across
+ * every server instance, not just the one that happened to take the request.
+ */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: ts("window_start").notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
 export const refundStatusEnum = pgEnum("refund_status", [
   "PENDING",
   "PROCESSED",
