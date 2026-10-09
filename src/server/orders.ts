@@ -210,7 +210,7 @@ export async function createOrder(
 export type FulfillResult =
   | { outcome: "fulfilled" | "already_paid" }
   /** Payment arrived after the hold lapsed and the seats were taken. */
-  | { outcome: "refund_required"; amountPaise: number }
+  | { outcome: "refund_required"; amountPaise: number; refundId: string }
   | { outcome: "not_found" | "not_payable" };
 
 /**
@@ -260,7 +260,17 @@ export async function fulfillOrder(
           .set({ status: "REFUNDED", razorpayPaymentId: paymentId, paidAt: now })
           .where(eq(orders.id, order.id));
         await tx.update(tickets).set({ status: "CANCELLED" }).where(eq(tickets.orderId, order.id));
-        return { outcome: "refund_required", amountPaise: order.amountPaise };
+        // Recorded here, in the same transaction, so the money owed can never be
+        // forgotten if the server stops before the refund is sent.
+        const [refund] = await tx
+          .insert(refunds)
+          .values({
+            orderId: order.id,
+            amountPaise: order.amountPaise,
+            reason: "Payment arrived after the seats were released",
+          })
+          .returning({ id: refunds.id });
+        return { outcome: "refund_required", amountPaise: order.amountPaise, refundId: refund.id };
       }
     }
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { events, orders, refunds, ticketTypes, tickets } from "@/db/schema";
 
@@ -20,7 +20,8 @@ export async function statsByEvent(eventIds?: string[]): Promise<Map<string, Eve
       sold: sql<number>`count(*) filter (where ${tickets.status} = 'VALID')::int`,
       checkedIn: sql<number>`count(*) filter (where ${tickets.status} = 'VALID' and ${tickets.checkedInAt} is not null)::int`,
       cancelled: sql<number>`count(*) filter (where ${tickets.status} = 'CANCELLED')::int`,
-      revenuePaise: sql<number>`coalesce(sum(${tickets.pricePaise}) filter (where ${tickets.status} = 'VALID'), 0)::int`,
+      // Summed as a 64-bit number: a 32-bit total overflows a little above ₹2 crore.
+      revenuePaise: sql<number>`coalesce(sum(${tickets.pricePaise}) filter (where ${tickets.status} = 'VALID'), 0)::bigint`.mapWith(Number),
     })
     .from(tickets)
     .where(scope)
@@ -122,12 +123,29 @@ export async function listRegistrations(
 
 export type RegistrationRow = Awaited<ReturnType<typeof listRegistrations>>["rows"][number];
 
+/**
+ * Refunds that need an organiser's attention: Razorpay rejected them, or they
+ * were recorded but never sent (for example the server stopped mid-way).
+ */
 export async function failedRefunds(eventId: string) {
+  const stuckBefore = new Date(Date.now() - 5 * 60_000);
   return db
     .select({ refund: refunds, orderNumber: orders.orderNumber })
     .from(refunds)
     .innerJoin(orders, eq(refunds.orderId, orders.id))
-    .where(and(eq(orders.eventId, eventId), eq(refunds.status, "FAILED")));
+    .where(
+      and(
+        eq(orders.eventId, eventId),
+        or(
+          eq(refunds.status, "FAILED"),
+          and(
+            eq(refunds.status, "PENDING"),
+            isNull(refunds.razorpayRefundId),
+            lt(refunds.createdAt, stuckBefore),
+          ),
+        ),
+      ),
+    );
 }
 
 export async function listEventsWithStats() {

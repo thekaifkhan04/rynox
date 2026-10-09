@@ -210,7 +210,10 @@ describe("fulfillOrder", () => {
     await fulfillOrder(winner.id, "pay_win");
 
     const res = await fulfillOrder(late.id, "pay_late");
-    expect(res).toEqual({ outcome: "refund_required", amountPaise: 10_000 });
+    expect(res).toMatchObject({ outcome: "refund_required", amountPaise: 10_000 });
+    // The refund is on record the moment it is owed, before anything is sent to the gateway.
+    const owed = await db.select().from(refunds).where(eq(refunds.orderId, late.id));
+    expect(owed.map((r) => [r.amountPaise, r.status])).toEqual([[10_000, "PENDING"]]);
     expect((await orderOf(late.id)).status).toBe("REFUNDED");
     expect((await ticketsOf(late.id))[0].status).toBe("CANCELLED");
     expect((await getAvailability(event.id)).byType[types[0].id]).toBe(0);

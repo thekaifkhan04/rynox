@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "@/db";
 import { orders, refunds, webhookEvents } from "@/db/schema";
@@ -21,8 +21,19 @@ export async function ensureRazorpayOrder(orderId: string): Promise<string | nul
     receipt: order.orderNumber,
     notes: { orderId: order.id, eventId: order.eventId },
   });
-  await db.update(orders).set({ razorpayOrderId: rzpOrder.id }).where(eq(orders.id, order.id));
-  return rzpOrder.id;
+  // Two tabs (or a double click) can get here together. Only the first id is kept and
+  // both callers use it, so a payment can never land on an order id we no longer know.
+  const [saved] = await db
+    .update(orders)
+    .set({ razorpayOrderId: rzpOrder.id })
+    .where(and(eq(orders.id, order.id), isNull(orders.razorpayOrderId)))
+    .returning({ id: orders.razorpayOrderId });
+  if (saved) return saved.id;
+  const [current] = await db
+    .select({ id: orders.razorpayOrderId })
+    .from(orders)
+    .where(eq(orders.id, order.id));
+  return current?.id ?? null;
 }
 
 /** Send the refunds recorded for an order to Razorpay and store the outcome. */
@@ -33,6 +44,8 @@ export async function processRefunds(refundIds: string[]) {
     with: { order: true },
   });
   for (const r of rows) {
+    // Already sent to Razorpay and waiting for its confirmation: sending again would refund twice.
+    if (r.razorpayRefundId) continue;
     const paymentId = r.order.razorpayPaymentId;
     try {
       if (!paymentId) throw new Error("Order has no payment to refund");
@@ -68,15 +81,7 @@ async function settle(orderId: string, paymentId: string): Promise<FulfillResult
     // Sent after the response so the buyer sees their ticket immediately.
     after(() => sendOrderEmail(orderId).catch((e) => console.error("Ticket email failed", e)));
   } else if (result.outcome === "refund_required") {
-    const [refund] = await db
-      .insert(refunds)
-      .values({
-        orderId,
-        amountPaise: result.amountPaise,
-        reason: "Payment arrived after the seats were released",
-      })
-      .returning({ id: refunds.id });
-    await processRefunds([refund.id]);
+    await processRefunds([result.refundId]);
     await sendRefundEmail(orderId, result.amountPaise, "sold_out").catch((e) =>
       console.error("Refund email failed", e),
     );
