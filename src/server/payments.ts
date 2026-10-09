@@ -89,13 +89,21 @@ async function settle(orderId: string, paymentId: string): Promise<FulfillResult
   return result;
 }
 
-/** Called from the browser after Razorpay Checkout succeeds. */
+/**
+ * Called from the browser after Razorpay Checkout succeeds.
+ *
+ * The signature is Razorpay's proof that this payment succeeded for this
+ * order (it is an HMAC of both ids with our secret), and the order's amount
+ * was fixed by us when it was created. So the ticket is issued straight away,
+ * without waiting on another call to Razorpay. That call, which can be slow,
+ * runs after the response as a cross-check.
+ */
 export async function confirmCheckout(input: {
   userId: string;
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
-}): Promise<FulfillResult | { outcome: "invalid_signature" | "payment_mismatch" }> {
+}): Promise<FulfillResult | { outcome: "invalid_signature" }> {
   const ok = verifyCheckoutSignature({
     orderId: input.razorpayOrderId,
     paymentId: input.razorpayPaymentId,
@@ -109,17 +117,37 @@ export async function confirmCheckout(input: {
     .where(and(eq(orders.razorpayOrderId, input.razorpayOrderId), eq(orders.userId, input.userId)));
   if (!order) return { outcome: "not_found" };
 
-  // Belt and braces: confirm amount and capture state with Razorpay itself.
-  const payment = await razorpay().payments.fetch(input.razorpayPaymentId);
-  if (payment.order_id !== order.razorpayOrderId || Number(payment.amount) !== order.amountPaise) {
-    return { outcome: "payment_mismatch" };
+  const result = await settle(order.id, input.razorpayPaymentId);
+  after(() => reconcilePayment(order.id, input.razorpayPaymentId));
+  return result;
+}
+
+/**
+ * Cross-checks a confirmed payment with Razorpay: captures it if it is only
+ * authorised, and reports loudly if anything does not match. The webhook is
+ * the other safety net; this covers accounts where it is not set up yet.
+ */
+async function reconcilePayment(orderId: string, paymentId: string) {
+  try {
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
+    if (!order) return;
+    const payment = await razorpay().payments.fetch(paymentId);
+    if (payment.order_id !== order.razorpayOrderId || Number(payment.amount) !== order.amountPaise) {
+      console.error(
+        `[payments] MISMATCH for order ${order.orderNumber}: payment ${paymentId} is for ${payment.order_id}, amount ${payment.amount}. Check this order by hand.`,
+      );
+      return;
+    }
+    if (payment.status === "authorized") {
+      await razorpay().payments.capture(payment.id, order.amountPaise, order.currency);
+    } else if (payment.status !== "captured" && payment.status !== "refunded") {
+      console.error(
+        `[payments] Order ${order.orderNumber} was confirmed but payment ${paymentId} is "${payment.status}". Check this order by hand.`,
+      );
+    }
+  } catch (err) {
+    console.error(`[payments] Could not cross-check payment ${paymentId}`, err);
   }
-  if (payment.status === "authorized") {
-    await razorpay().payments.capture(payment.id, order.amountPaise, order.currency);
-  } else if (payment.status !== "captured") {
-    return { outcome: "payment_mismatch" };
-  }
-  return settle(order.id, payment.id);
 }
 
 /** Development only: pay an order without Razorpay when no keys are configured. */
