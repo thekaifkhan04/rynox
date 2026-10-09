@@ -17,11 +17,16 @@ async function MyTickets() {
   const mine = await db.query.tickets.findMany({
     where: and(
       inArray(tickets.status, ["VALID", "CANCELLED"]),
-      // Tickets this account bought, plus tickets issued to its email by someone else.
+      // Tickets this account bought online, plus tickets issued to its email by someone else.
+      // Offline registrations an organiser entered for other people belong to those people,
+      // not to the organiser who typed them in.
       or(
         inArray(
           tickets.orderId,
-          db.select({ id: orders.id }).from(orders).where(eq(orders.userId, user.id)),
+          db
+            .select({ id: orders.id })
+            .from(orders)
+            .where(and(eq(orders.userId, user.id), eq(orders.paymentMethod, "ONLINE"))),
         ),
         eq(tickets.attendeeEmail, user.email.toLowerCase()),
       ),

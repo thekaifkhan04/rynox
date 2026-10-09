@@ -121,17 +121,20 @@ export async function applyToSponsor(user: { id: string }, raw: SponsorApplicati
   return created;
 }
 
+/** Throws when a level has no place left for one more approved sponsor. */
+export async function assertTierHasRoom(tierId: string) {
+  const [tier] = await db.select().from(sponsorTiers).where(eq(sponsorTiers.id, tierId));
+  if (tier?.slots != null && (await approvedCount(tier.id)) >= tier.slots) {
+    throw new OrderError(
+      `${tier.name} already has ${tier.slots} sponsor${tier.slots === 1 ? "" : "s"}. Raise its limit or choose another level.`,
+    );
+  }
+}
+
 /** Approving respects the level's limit, so a level is never oversubscribed. */
 export async function setSponsorStatus(sponsorId: string, status: Sponsor["status"]) {
   const [sponsor] = await db.select().from(sponsors).where(eq(sponsors.id, sponsorId));
   if (!sponsor) throw new OrderError("Sponsor not found");
-  if (status === "APPROVED" && sponsor.status !== "APPROVED") {
-    const [tier] = await db.select().from(sponsorTiers).where(eq(sponsorTiers.id, sponsor.tierId));
-    if (tier?.slots != null && (await approvedCount(tier.id)) >= tier.slots) {
-      throw new OrderError(
-        `${tier.name} already has ${tier.slots} sponsor${tier.slots === 1 ? "" : "s"}. Raise its limit or move this sponsor to another level.`,
-      );
-    }
-  }
+  if (status === "APPROVED" && sponsor.status !== "APPROVED") await assertTierHasRoom(sponsor.tierId);
   await db.update(sponsors).set({ status }).where(eq(sponsors.id, sponsorId));
 }

@@ -45,7 +45,7 @@ import { processRefunds } from "@/server/payments";
 import { recordLevelResult, undoLastLevelResult } from "@/server/progress";
 import { cancelAndRefund } from "@/server/refunds";
 import { parseSpreadsheetId, SheetsError, syncEventToSheet } from "@/server/sheets";
-import { setSponsorStatus } from "@/server/sponsors";
+import { assertTierHasRoom, setSponsorStatus } from "@/server/sponsors";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -639,7 +639,14 @@ export async function saveSponsorAction(
       .where(and(eq(sponsorTiers.id, v.tierId), eq(sponsorTiers.eventId, eventId)));
     if (!tier) throw new UserError("That level does not belong to this event");
     if (id) {
-      await db.update(sponsors).set(v).where(and(eq(sponsors.id, id), eq(sponsors.eventId, eventId)));
+      const [current] = await db
+        .select()
+        .from(sponsors)
+        .where(and(eq(sponsors.id, id), eq(sponsors.eventId, eventId)));
+      if (!current) throw new UserError("Sponsor not found");
+      // Moving a live sponsor to another level must not overfill that level.
+      if (current.status === "APPROVED" && current.tierId !== v.tierId) await assertTierHasRoom(v.tierId);
+      await db.update(sponsors).set(v).where(eq(sponsors.id, id));
       return;
     }
     const [me] = await db.select().from(userTable).where(eq(userTable.id, adminId));

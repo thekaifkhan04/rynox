@@ -86,6 +86,18 @@ export function RegistrationForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // The browser checks required text boxes itself, but it cannot point at a
+    // dropdown, so a required one left empty is caught here and focused.
+    for (const [index, a] of attendees.entries()) {
+      const missing = fields.find((f) => f.type === "SELECT" && f.required && !a.answers[f.key]);
+      if (missing) {
+        const message = `${multiple ? `Athlete ${index + 1}: ` : ""}Please choose an option for “${missing.label}”.`;
+        setError(message);
+        toast.error(message);
+        document.getElementById(`a${a.key}-${missing.key}`)?.focus();
+        return;
+      }
+    }
     startTransition(async () => {
       const res = await (offline ? offlineRegisterAction : registerAction)({
         eventId: event.id,
@@ -230,7 +242,6 @@ export function RegistrationForm({
                       ) : f.type === "SELECT" ? (
                         <SimpleSelect
                           id={fid}
-                          required={f.required}
                           placeholder="Select…"
                           value={common.value}
                           onValueChange={(v) => setAnswer(a.key, f.key, v)}

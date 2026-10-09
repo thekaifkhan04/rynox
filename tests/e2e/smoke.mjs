@@ -43,9 +43,13 @@ step("dev login redirects back to registration");
 
 await page.fill("#a0-phone", "+91 98765 43210");
 await page.fill("#a0-org", "Run Club");
-await pick("#a0-tshirt", "M");
+// A required dropdown left empty must say so, not fail silently.
 await page.fill("#a0-emergency_contact", "9876500000");
 await page.click("#a0-waiver");
+await page.click("text=Continue to payment");
+await page.waitForSelector("form [role=alert] >> text=Please choose an option");
+step("skipping a required dropdown shows a clear message");
+await pick("#a0-tshirt", "M");
 await page.click("text=Add another ticket");
 await pick("#a1-type", 1);
 await page.fill("#a1-name", "Second Athlete");

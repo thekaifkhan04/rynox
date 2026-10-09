@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { events, sponsorTiers, sponsors } from "@/db/schema";
-import { applyToSponsor, getSponsorship, setSponsorStatus } from "@/server/sponsors";
+import { applyToSponsor, assertTierHasRoom, getSponsorship, setSponsorStatus } from "@/server/sponsors";
 import { makeEvent, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -64,6 +64,7 @@ describe("sponsorship", () => {
     const second = await applyToSponsor(await makeUser(), application(title.id, "Second"));
     await setSponsorStatus(first.id, "APPROVED");
     await expect(setSponsorStatus(second.id, "APPROVED")).rejects.toThrow(/already has 1 sponsor/);
+    await expect(assertTierHasRoom(title.id)).rejects.toThrow(/already has 1 sponsor/);
     await expect(applyToSponsor(await makeUser(), application(title.id, "Third"))).rejects.toThrow(
       /fully taken/,
     );
