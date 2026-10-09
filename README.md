@@ -62,6 +62,10 @@ to the site.
    a refund from the admin, before opening registration.
 6. Send yourself a ticket and check the email arrives with the PDF attached.
 7. Open the check-in screen on the phones you will use at the gate and scan that ticket.
+8. While doing steps 5–7, keep the browser console open. The site sends a content security
+   policy in report-only mode: anything it would block is logged with the prefix
+   "[Report Only]" but still works. If nothing is logged, enforce it by renaming the header in
+   `next.config.ts` from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`.
 
 ## How it works
 
