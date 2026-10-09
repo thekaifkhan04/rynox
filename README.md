@@ -38,7 +38,12 @@ in `ADMIN_EMAILS`. The dashboard is at `/admin`.
 | Payment webhook | Razorpay Dashboard → Webhooks. URL `https://YOUR_DOMAIN/api/razorpay/webhook`, events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed` | `RAZORPAY_WEBHOOK_SECRET` |
 | Email | Resend API key, **or** Zoho SMTP (`smtp.zoho.in`, port 465, app password) | `EMAIL_PROVIDER`, `EMAIL_FROM`, `RESEND_API_KEY` or `SMTP_*` |
 | Google Sheets sync (optional) | Google Cloud Console → enable **Google Sheets API** → create a **service account** → Keys → add a JSON key. Use its `client_email` and `private_key` | `GOOGLE_SHEETS_CLIENT_EMAIL`, `GOOGLE_SHEETS_PRIVATE_KEY` |
+| Connection pool (optional) | Connections each server instance may open; keep it small on serverless | `DATABASE_POOL_MAX` |
 | Image uploads (optional) | Vercel → Storage → Blob | `BLOB_READ_WRITE_TOKEN` |
+
+**Check your setup:** Admin → Dashboard has a Setup panel that shows which of these are ready,
+missing or worth a second look (test keys, a non-pooled Neon address, a placeholder sender
+address). The same problems are written to the server log when a production server starts.
 
 Deploy on Vercel, set the variables above, and run `pnpm db:migrate` against the production
 database (locally with the Neon URL, or as part of the build command:
@@ -46,6 +51,17 @@ database (locally with the Neon URL, or as part of the build command:
 
 Set up the webhook. It is what confirms a payment if the buyer closes the tab before returning
 to the site.
+
+### Before the first real event
+
+1. Set every variable above and confirm the Setup panel shows nothing missing.
+2. Use Neon's **pooled** connection string, and put the Vercel region next to the Neon region.
+3. Run the migrations against production (`pnpm db:migrate`).
+4. Sign in first yourself: the first account becomes the admin.
+5. In Razorpay, register the webhook and make one real low-value payment end to end, including
+   a refund from the admin, before opening registration.
+6. Send yourself a ticket and check the email arrives with the PDF attached.
+7. Open the check-in screen on the phones you will use at the gate and scan that ticket.
 
 ## How it works
 

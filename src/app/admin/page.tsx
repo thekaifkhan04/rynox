@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SetupStatus } from "@/components/admin/setup-status";
 import { EventStatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { checkConfig } from "@/lib/config-check";
 import { formatDate } from "@/lib/dates";
 import { formatAmount } from "@/lib/money";
 import { requireAdmin } from "@/lib/session";
@@ -64,6 +66,8 @@ export default async function AdminDashboard() {
         />
         <Stat label="Refunded" value={formatAmount(total.refunded)} />
       </div>
+
+      <SetupStatus checks={checkConfig()} />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Events</h2>
