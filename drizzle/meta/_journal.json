@@ -50,6 +50,13 @@
       "when": 1791498437056,
       "tag": "0006_first_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791525565402,
+      "tag": "0007_narrow_baron_zemo",
+      "breakpoints": true
     }
   ]
 }

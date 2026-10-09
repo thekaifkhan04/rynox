@@ -319,6 +319,7 @@ export const tickets = pgTable(
     index("tickets_event_status_idx").on(t.eventId, t.status),
     index("tickets_order_idx").on(t.orderId),
     index("tickets_type_idx").on(t.ticketTypeId),
+    index("tickets_attendee_email_idx").on(t.attendeeEmail),
   ],
 );
 

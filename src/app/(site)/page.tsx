@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowDown, ArrowRight, ArrowUpRight, CalendarDays, MapPin } from "lucide-react";
@@ -28,13 +28,14 @@ import { safeUrl } from "@/sections/registry";
  * event as a card beside it.
  */
 
-async function loadUpcoming() {
+// Shared within a request: the hero card, numbers, backdrop and grid all use one query.
+const loadUpcoming = cache(async () => {
   await connection();
   const now = new Date();
   // `featured` is the event the organiser chose for this page, or else the next one.
   const { event: featured, chosenByOrganiser, upcoming } = pickFeatured(await listPublicEvents(), now);
   return { now, upcoming, featured, chosenByOrganiser };
-}
+});
 
 /** The "next up" card that sits beside the headline. */
 function NextUpCard({ event, label }: { event: PublicEvent; label: string }) {

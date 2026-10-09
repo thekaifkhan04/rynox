@@ -23,8 +23,9 @@ export async function registrationTable(event: EventWithDetails, filters: Regist
     const type = event.ticketTypes.find((t) => t.id === ticketTypeId);
     return event.competitions.find((c) => c.id === type?.competitionId) ?? null;
   };
+  const resultsByTicket = Map.groupBy(results, (r) => r.ticketId);
   const progressText = (ticketId: string, ticketTypeId: string) => {
-    const mine = results.filter((r) => r.ticketId === ticketId);
+    const mine = resultsByTicket.get(ticketId) ?? [];
     const progress = progressOf(competitionOf(ticketTypeId)?.levels ?? [], mine);
     const last = progress.state === "none" ? null : mine.find((r) => r.levelId === progress.level.id);
     return { label: progressLabel(progress) ?? "", result: last?.result ?? "" };

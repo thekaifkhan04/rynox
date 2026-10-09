@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -36,8 +37,11 @@ export function pickFeatured(all: PublicEvent[], now: Date) {
   return { event: chosen ?? upcoming[0] ?? null, chosenByOrganiser: Boolean(chosen), upcoming };
 }
 
-/** Everything the public event page and the registration form need. */
-export async function getEventBySlug(slug: string) {
+/**
+ * Everything the public event page and the registration form need.
+ * Shared within a request, so the page and its metadata make one query.
+ */
+export const getEventBySlug = cache(async (slug: string) => {
   return db.query.events.findFirst({
     where: eq(events.slug, slug),
     with: {
@@ -50,7 +54,7 @@ export async function getEventBySlug(slug: string) {
       formFields: { orderBy: [asc(formFields.sortOrder)] },
     },
   });
-}
+});
 
 export async function getEventById(id: string) {
   return db.query.events.findFirst({
